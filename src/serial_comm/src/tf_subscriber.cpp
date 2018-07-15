@@ -1,5 +1,6 @@
 #include "ros/ros.h"
 #include "std_msgs/String.h"
+#include "sensor_msgs/Imu.h"
 #include "tf/tfMessage.h"
 // serial port
 #include "../include/mavlink/v1.0/common/mavlink.h"
@@ -9,6 +10,8 @@
 #include <iostream>
 #include <string>
 using namespace std;
+
+ros::Publisher* publisher = nullptr;
 
 /*
 geometry_msgs/TransformStamped[] transforms
@@ -32,6 +35,7 @@ geometry_msgs/TransformStamped[] transforms
 
 void Callback(const tf::tfMessage::ConstPtr& _msg)
 {
+	sensor_msgs::Imu pubMsg;
   //ROS_INFO("I heard: %s", msg->transforms.size());c
 	//cout<<"0\n";
 	//cout<<msg->transforms[0];
@@ -86,10 +90,10 @@ void Callback(const tf::tfMessage::ConstPtr& _msg)
 							float xacc = imu_data.xacc;
 							float yacc = -imu_data.yacc;
 							float zacc = -imu_data.zacc;
-							float roll = imu_data.xgyro; //roll
-							float pitch = -imu_data.ygyro;
-							float yaw = -imu_data.zgyro;
-							double cy = cos(yaw * 0.5);
+							float x_ang = imu_data.xgyro; //roll
+							float y_ang = -imu_data.ygyro;
+							float z_ang = -imu_data.zgyro;
+							/*double cy = cos(yaw * 0.5);
 							double sy = sin(yaw * 0.5);
 							double cr = cos(roll * 0.5);
 							double sr = sin(roll * 0.5);
@@ -98,10 +102,45 @@ void Callback(const tf::tfMessage::ConstPtr& _msg)
 							double w = cy * cr * cp + sy * sr * sp;
 							double x = cy * sr * cp - sy * cr * sp;
 							double y = cy * cr * sp + sy * sr * cp;
-							double z = sy * cr * cp - cy * sr * sp;
-							printf("Imu data: usec=%ld, xacc=%lf, yacc=%lf, zacc=%lf\tx,y,z,w=%lf, %lf, %lf, %lf\n",imu_data.time_usec,xacc,yacc,zacc,x,y,z,w);
+							double z = sy * cr * cp - cy * sr * sp;*/
+							printf("Imu data: usec=%ld, xacc=%lf, yacc=%lf, zacc=%lf\troll_spd, pitch_spd, yaw_spd=%lf, %lf, %lf\n",imu_data.time_usec,xacc,yacc,zacc,x_ang,y_ang,z_ang);
+
+							// publish data 
+
+    					pubMsg.header.seq = 1;
+    					//pubMsg.header.stamp = 0;
+    					pubMsg.header.frame_id = string("laser");
+    					//set angular velocity
+    					pubMsg.angular_velocity.x = x_ang;
+    					pubMsg.angular_velocity.y = y_ang;
+    					pubMsg.angular_velocity.z = z_ang;
+    					//set acceleration
+							pubMsg.linear_acceleration.x = xacc;
+							pubMsg.linear_acceleration.y = yacc;
+							pubMsg.linear_acceleration.z = zacc;
+
+    					for(int i = 0; i < 9; i++){
+    						pubMsg.orientation_covariance[i] = 0;
+    						pubMsg.angular_velocity_covariance[i] = 0;
+    						pubMsg.linear_acceleration_covariance[i] = 0;
+    					}
 						}
-						break;
+						case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:
+						{
+							mavlink_attitude_quaternion_t attitude;
+							mavlink_msg_attitude_quaternion_decode(&msg,&attitude);
+							// set position
+
+							// (w,x,y,z) <= (x,-y,-z,w) 
+							pubMsg.orientation.x = -attitude.q3;
+    					pubMsg.orientation.y = -attitude.q4;
+    					pubMsg.orientation.z = attitude.q1;
+   				  	pubMsg.orientation.w = attitude.q2;
+
+							// construct ok, now pub it
+    					cout<<pubMsg<<endl;
+    					if(publisher)publisher->publish(pubMsg);
+						}
 					}
 				}
 			}
@@ -153,6 +192,7 @@ int main(int argc, char **argv)
 	}
   ros::init(argc, argv, "tf_subscriber");
   ros::NodeHandle n;
+	ros::NodeHandle n2;
   // initialize serial port
   SimpleSerialPort* serial_port = SimpleSerialPort::getInstance();
   if(serial_port)
@@ -172,8 +212,9 @@ int main(int argc, char **argv)
 	{
 		ROS_INFO("Serial device not specified, only output data to stdout. If you want to output data to serial, please add device name");
 	}
+	ros::Publisher imu_pub = n2.advertise<sensor_msgs::Imu>("imu", 1000);
+	publisher = &imu_pub;
   ros::Subscriber sub = n.subscribe("tf", 1000, Callback);
-
   ros::spin();
   return 0;
 }
