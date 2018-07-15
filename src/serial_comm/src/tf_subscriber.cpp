@@ -107,7 +107,7 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 						// publish data
 
 						pubMsg.header.seq = 1;
-						//pubMsg.header.stamp = 0;
+						pubMsg.header.stamp = ros::Time::now();
 						pubMsg.header.frame_id = string("laser");
 						//set angular velocity
 						pubMsg.angular_velocity.x = x_ang;
@@ -220,10 +220,15 @@ int main(int argc, char **argv)
 	{
 		ROS_INFO("Serial device not specified, only output data to stdout. If you want to output data to serial, please add device name");
 	}
+	int loopTime = 3;
+	while(ros::ok() && loopTime)
+	{
+		Process(nullptr);
+		loopTime--;
+	}
 	ros::Publisher imu_pub = n2.advertise<sensor_msgs::Imu>("imu", 1000);
 	publisher = &imu_pub;
 	ros::Subscriber sub = n.subscribe("tf", 1000, Callback);
-	Callback(nullptr);
 	ros::spin();
 	return 0;
 }
