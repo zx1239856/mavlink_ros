@@ -103,7 +103,7 @@ void Callback(const tf::tfMessage::ConstPtr& _msg)
 							double x = cy * sr * cp - sy * cr * sp;
 							double y = cy * cr * sp + sy * sr * cp;
 							double z = sy * cr * cp - cy * sr * sp;*/
-							printf("Imu data: usec=%ld, xacc=%lf, yacc=%lf, zacc=%lf\troll_spd, pitch_spd, yaw_spd=%lf, %lf, %lf\n",imu_data.time_usec,xacc,yacc,zacc,x_ang,y_ang,z_ang);
+							printf("Imu data: usec=%uld, xacc=%lf, yacc=%lf, zacc=%lf\troll_spd, pitch_spd, yaw_spd=%lf, %lf, %lf\n",imu_data.time_usec,xacc,yacc,zacc,x_ang,y_ang,z_ang);
 
 							// publish data 
 
