@@ -180,7 +180,7 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 
 void Callback(const tf::tfMessage::ConstPtr &_msg)
 {
-	Process(_msg);
+	Process(&_msg);
 }
 
 int main(int argc, char **argv)
