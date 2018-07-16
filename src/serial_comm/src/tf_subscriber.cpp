@@ -5,7 +5,7 @@
 // serial port
 #include "../include/mavlink/v1.0/common/mavlink.h"
 #include "simple_comm/simple_serial_port.h"
-// matrix calculation
+#include "coordinate.h"
 #include <cmath>
 #include <iostream>
 #include <string>
@@ -85,38 +85,22 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 					{
 						mavlink_highres_imu_t imu_data;
 						mavlink_msg_highres_imu_decode(&msg, &imu_data);
-						// NED => ENU here
-						float xacc = imu_data.xacc;
-						float yacc = -imu_data.yacc;
-						float zacc = -imu_data.zacc;
-						float x_ang = imu_data.xgyro; //roll
-						float y_ang = -imu_data.ygyro;
-						float z_ang = -imu_data.zgyro;
-						/*double cy = cos(yaw * 0.5);
-							double sy = sin(yaw * 0.5);
-							double cr = cos(roll * 0.5);
-							double sr = sin(roll * 0.5);
-							double cp = cos(pitch * 0.5);
-							double sp = sin(pitch * 0.5);
-							double w = cy * cr * cp + sy * sr * sp;
-							double x = cy * sr * cp - sy * cr * sp;
-							double y = cy * cr * sp + sy * sr * cp;
-							double z = sy * cr * cp - cy * sr * sp;*/
-						printf("Imu data: usec=%lld, xacc=%lf, yacc=%lf, zacc=%lf\troll_spd, pitch_spd, yaw_spd=%lf, %lf, %lf\n", imu_data.time_usec, xacc, yacc, zacc, x_ang, y_ang, z_ang);
-
+						Coordinate converter(imu_data.xacc,imu_data.yacc,imu_data.zacc,imu_data.xgyro,imu_data.ygyro,imu_data.zgyro,Coordinate::nedBody);
 						// publish data
-
+						converter.setCoordMode(Coordinate::enu);
+						auto trans = converter.getTranslation();
+						auto rot = converter.getRotation();
 						pubMsg.header.seq = 1;
 						pubMsg.header.stamp = ros::Time::now();
 						pubMsg.header.frame_id = string("laser");
 						//set angular velocity
-						pubMsg.angular_velocity.x = x_ang;
-						pubMsg.angular_velocity.y = y_ang;
-						pubMsg.angular_velocity.z = z_ang;
+						pubMsg.angular_velocity.x = rot[0];
+						pubMsg.angular_velocity.y = rot[1];
+						pubMsg.angular_velocity.z = rot[2];
 						//set acceleration
-						pubMsg.linear_acceleration.x = xacc;
-						pubMsg.linear_acceleration.y = yacc;
-						pubMsg.linear_acceleration.z = zacc;
+						pubMsg.linear_acceleration.x = trans[0];
+						pubMsg.linear_acceleration.y = trans[1];
+						pubMsg.linear_acceleration.z = trans[2];
 
 						for (int i = 0; i < 9; i++)
 						{
@@ -131,11 +115,14 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 						mavlink_msg_attitude_quaternion_decode(&msg, &attitude);
 						// set position
 
-						// (w,x,y,z) <= (x,-y,-z,w)
-						pubMsg.orientation.x = -attitude.q3;
-						pubMsg.orientation.y = -attitude.q4;
-						pubMsg.orientation.z = attitude.q1;
-						pubMsg.orientation.w = attitude.q2;
+						Coordinate converter(0,0,0,attitude.q1,attitude.q2,attitude.q3,attitude.q4,Coordinate::nedBody);
+						converter.setCoordMode(Coordinate::enu);
+						converter.setRotMode(Coordinate::quaternion);
+						auto rot = converter.getRotation();
+						pubMsg.orientation.x = rot[1];
+						pubMsg.orientation.y = rot[2];
+						pubMsg.orientation.z = rot[3];
+						pubMsg.orientation.w = rot[0];
 
 						// construct ok, now pub it
 						cout << pubMsg << endl;
@@ -149,28 +136,18 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 		if (_msg)
 		{
 			auto data = (*_msg)->transforms[1].transform;
-			/** 
-		 * ENU in ROS => NED in PX4 coordinate frame conversion guidance 
-		 * 
-		 * (x,y,z) => (x,-y,-z)
-		 * (w,x,y,z) => (x,-y,-z,w) 
-		 * (roll,pitch,yaw) => (roll,-pitch,-yaw)
-		 */
-			/*** 
-		 * quaternion to euler angle
-		 * 
-		 * here we only need yaw for the laser */
-			//double roll,pitch,yaw;
-			//roll = atan2(2*(data.rotation.w*data.rotation.x+data.rotation.y*data.rotation.z),(1-2*(data.rotation.x*data.rotation.x+data.rotation.y*data.rotation.y)));
-			//pitch = asin(2*(data.rotation.w*data.rotation.y-data.rotation.x*data.rotation.z));
-			double yaw = atan2(2 * (data.rotation.w * data.rotation.z + data.rotation.x * data.rotation.y), (1 - 2 * (data.rotation.z * data.rotation.z + data.rotation.y * data.rotation.y)));
-			printf("NED coord:  x=%lf, y=%lf, yaw(deg)=%lf\n", data.translation.x, -data.translation.y, -yaw / M_PI * 180);
+			Coordinate converter(data.translation.x,data.translation.y,data.translation.z,data.rotation.w,data.rotation.x,data.rotation.y,data.rotation.z);
+			converter.setCoordMode(Coordinate::nedBody);
+			converter.setRotMode(Coordinate::euler);
+			auto rot = converter.getRotation();
+			auto trans = converter.getTranslation();
+			printf("NED coord:  x=%lf, y=%lf, yaw(deg)=%lf\n", trans[0], trans[1], rot[2] / M_PI * 180);
 			// ROS-ENU -> PX4-NED
 			if (serial_port)
 			{
 				mavlink_message_t msg;
-				mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(), data.translation.x,
-														  -data.translation.y, 0, 0, 0, -yaw);
+				mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(), trans[0],
+														  trans[1], 0, 0, 0, rot[2]);
 				unsigned int send_length = mavlink_msg_to_send_buffer(serial_port_send_buffer, &msg);
 				serial_port->sendBytes(serial_port_send_buffer, send_length);
 			}
