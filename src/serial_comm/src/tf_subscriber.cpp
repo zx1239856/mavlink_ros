@@ -12,10 +12,10 @@
 
 #include <geometry_msgs/Vector3.h>
 #include <tf/transform_datatypes.h>
+#include <map>
 using namespace std;
 
 ros::Publisher *publisher = nullptr;
-
 /*
 geometry_msgs/TransformStamped[] transforms
   std_msgs/Header header
@@ -35,9 +35,14 @@ geometry_msgs/TransformStamped[] transforms
       float64 w
  */
 
+std::map<uint32_t, mavlink_highres_imu_t> highres_imu_map;
+
 void Process(const tf::tfMessage::ConstPtr *_msg)
 {
 	sensor_msgs::Imu imu_msg;
+	imu_msg.header.stamp = ros::Time::now();
+	imu_msg.header.frame_id = string("laser");
+	uint64_t currTime;
 	//ROS_INFO("I heard: %s", msg->transforms.size());c
 	//cout<<"0\n";
 	//cout<<msg->transforms[0];
@@ -88,37 +93,41 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 					{
 						mavlink_highres_imu_t imu_data;
 						mavlink_msg_highres_imu_decode(&msg, &imu_data);
-						// publish data
-						imu_msg.header.seq = 1;
-						imu_msg.header.stamp = ros::Time::now();
-						imu_msg.header.frame_id = string("laser");
-						/*//set angular velocity
-						imu_msg.angular_velocity.x = rot[0];
-						imu_msg.angular_velocity.y = rot[1];
-						imu_msg.angular_velocity.z = rot[2];*/
-						//set acceleration
-						imu_msg.linear_acceleration.x = imu_data.xacc;
-						imu_msg.linear_acceleration.y = -imu_data.yacc;
-						imu_msg.linear_acceleration.z = -imu_data.zacc;
-						// !----TODO ---- Covariance builder
-						for (int i = 0; i < 9; i++)
+						if (highres_imu_map.size() == 20)
 						{
-							imu_msg.orientation_covariance[i] = 0;
-							imu_msg.angular_velocity_covariance[i] = 0;
-							imu_msg.linear_acceleration_covariance[i] = 0;
+							highres_imu_map.erase(highres_imu_map.begin());
 						}
+						highres_imu_map[imu_data.time_usec / 1000] = imu_data;
 					}
+					break;
 					case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:
 					{
-						mavlink_attitude_t att;
-						mavlink_msg_attitude_decode(&msg, &att);
+						mavlink_attitude_quaternion_t att;
+						mavlink_msg_attitude_quaternion_decode(&msg, &att);
 						// set position
-
-						tf::Quaternion orientation = tf::createQuaternionFromRPY(att.roll, -att.pitch, -att.yaw);
-						tf::quaternionTFToMsg(orientation, imu_msg.orientation);
-						imu_msg.angular_velocity.x = att.rollspeed;
-						imu_msg.angular_velocity.y = -att.pitchspeed;
-						imu_msg.angular_velocity.z = -att.yawspeed;
+						if (!highres_imu_map.empty())
+						{
+							auto pos = highres_imu_map.rbegin();
+							//imu_msg.header.seq = 1;
+							//set angular velocity
+							imu_msg.angular_velocity.x = pos->second.xgyro;
+							imu_msg.angular_velocity.y = -pos->second.ygyro;
+							imu_msg.angular_velocity.z = -pos->second.zgyro;
+							//set acceleration
+							imu_msg.linear_acceleration.x = pos->second.xacc;
+							imu_msg.linear_acceleration.y = -pos->second.yacc;
+							imu_msg.linear_acceleration.z = -pos->second.zacc;
+							for (int i = 0; i < 9; i++)
+							{
+								imu_msg.orientation_covariance[i] = 0;
+								imu_msg.angular_velocity_covariance[i] = 0;
+								imu_msg.linear_acceleration_covariance[i] = 0;
+							}
+						}
+						imu_msg.orientation.x = att.q2;
+						imu_msg.orientation.y = -att.q3;
+						imu_msg.orientation.z = -att.q4;
+						imu_msg.orientation.w = att.q1;
 						// construct ok, now pub it
 						cout << imu_msg << endl;
 						if (publisher)
@@ -131,7 +140,7 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 		if (_msg)
 		{
 			auto data = (*_msg)->transforms[1].transform;
-			Coordinate converter(data.translation.x,data.translation.y,data.translation.z,data.rotation.w,data.rotation.x,data.rotation.y,data.rotation.z);
+			Coordinate converter(data.translation.x, data.translation.y, data.translation.z, data.rotation.w, data.rotation.x, data.rotation.y, data.rotation.z);
 			converter.setCoordMode(Coordinate::nedBody);
 			converter.setRotMode(Coordinate::euler);
 			auto rot = converter.getRotation();
@@ -195,11 +204,9 @@ int main(int argc, char **argv)
 	ros::Publisher imu_pub = n2.advertise<sensor_msgs::Imu>("imu", 1000);
 	publisher = &imu_pub;
 	ros::Subscriber sub = n.subscribe("tf", 1000, Callback);
-	int loopTime = 3;
-	while(ros::ok() && loopTime)
+	while (ros::ok())
 	{
 		Process(nullptr);
-		loopTime--;
 	}
 	ros::spin();
 	return 0;
