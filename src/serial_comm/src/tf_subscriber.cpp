@@ -9,6 +9,9 @@
 #include <cmath>
 #include <iostream>
 #include <string>
+
+#include <geometry_msgs/Vector3.h>
+#include <tf/transform_datatypes.h>
 using namespace std;
 
 ros::Publisher *publisher = nullptr;
@@ -34,7 +37,7 @@ geometry_msgs/TransformStamped[] transforms
 
 void Process(const tf::tfMessage::ConstPtr *_msg)
 {
-	sensor_msgs::Imu pubMsg;
+	sensor_msgs::Imu imu_msg;
 	//ROS_INFO("I heard: %s", msg->transforms.size());c
 	//cout<<"0\n";
 	//cout<<msg->transforms[0];
@@ -85,49 +88,41 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 					{
 						mavlink_highres_imu_t imu_data;
 						mavlink_msg_highres_imu_decode(&msg, &imu_data);
-						Coordinate converter(imu_data.xacc,imu_data.yacc,imu_data.zacc,imu_data.xgyro,imu_data.ygyro,imu_data.zgyro,Coordinate::nedBody);
 						// publish data
-						converter.setCoordMode(Coordinate::enu);
-						auto trans = converter.getTranslation();
-						auto rot = converter.getRotation();
-						pubMsg.header.seq = 1;
-						pubMsg.header.stamp = ros::Time::now();
-						pubMsg.header.frame_id = string("laser");
-						//set angular velocity
-						pubMsg.angular_velocity.x = rot[0];
-						pubMsg.angular_velocity.y = rot[1];
-						pubMsg.angular_velocity.z = rot[2];
+						imu_msg.header.seq = 1;
+						imu_msg.header.stamp = ros::Time::now();
+						imu_msg.header.frame_id = string("laser");
+						/*//set angular velocity
+						imu_msg.angular_velocity.x = rot[0];
+						imu_msg.angular_velocity.y = rot[1];
+						imu_msg.angular_velocity.z = rot[2];*/
 						//set acceleration
-						pubMsg.linear_acceleration.x = trans[0];
-						pubMsg.linear_acceleration.y = trans[1];
-						pubMsg.linear_acceleration.z = trans[2];
-
+						imu_msg.linear_acceleration.x = imu_data.xacc;
+						imu_msg.linear_acceleration.y = -imu_data.yacc;
+						imu_msg.linear_acceleration.z = -imu_data.zacc;
+						// !----TODO ---- Covariance builder
 						for (int i = 0; i < 9; i++)
 						{
-							pubMsg.orientation_covariance[i] = 0;
-							pubMsg.angular_velocity_covariance[i] = 0;
-							pubMsg.linear_acceleration_covariance[i] = 0;
+							imu_msg.orientation_covariance[i] = 0;
+							imu_msg.angular_velocity_covariance[i] = 0;
+							imu_msg.linear_acceleration_covariance[i] = 0;
 						}
 					}
 					case MAVLINK_MSG_ID_ATTITUDE_QUATERNION:
 					{
-						mavlink_attitude_quaternion_t attitude;
-						mavlink_msg_attitude_quaternion_decode(&msg, &attitude);
+						mavlink_attitude_t att;
+						mavlink_msg_attitude_decode(&msg, &att);
 						// set position
 
-						Coordinate converter(0,0,0,attitude.q1,attitude.q2,attitude.q3,attitude.q4,Coordinate::nedBody);
-						converter.setCoordMode(Coordinate::enu);
-						converter.setRotMode(Coordinate::quaternion);
-						auto rot = converter.getRotation();
-						pubMsg.orientation.x = rot[1];
-						pubMsg.orientation.y = rot[2];
-						pubMsg.orientation.z = rot[3];
-						pubMsg.orientation.w = rot[0];
-
+						tf::Quaternion orientation = tf::createQuaternionFromRPY(att.roll, -att.pitch, -att.yaw);
+						tf::quaternionTFToMsg(orientation, imu_msg.orientation);
+						imu_msg.angular_velocity.x = att.rollspeed;
+						imu_msg.angular_velocity.y = -att.pitchspeed;
+						imu_msg.angular_velocity.z = -att.yawspeed;
 						// construct ok, now pub it
-						cout << pubMsg << endl;
+						cout << imu_msg << endl;
 						if (publisher)
-							publisher->publish(pubMsg);
+							publisher->publish(imu_msg);
 					}
 					}
 				}
