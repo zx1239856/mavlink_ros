@@ -207,7 +207,7 @@ int main(int argc, char **argv)
 	while (ros::ok())
 	{
 		Process(nullptr);
+		ros::spinOnce();
 	}
-	ros::spin();
 	return 0;
 }
