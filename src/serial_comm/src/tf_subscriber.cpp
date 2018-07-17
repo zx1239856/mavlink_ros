@@ -17,30 +17,32 @@
 using namespace std;
 using namespace Eigen;
 
-
 #define likely(x) __builtin_expect(!!(x), 1) //gcc内置函数, 帮助编译器分支优化
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
 ros::Publisher *publisher = nullptr;
 
-std::vector<double> transformAngle(double roll,double pitch, double yaw)
+std::vector<double> transformAngle(double x, double y, double z, double w)
 {
-    MatrixXd r(3, 3), p(3, 3), y(3, 3);
-    r(0, 0) = 1, r(0, 1) = r(0, 2) = r(1, 0) = r(2, 0) = 0;
-    r(1, 1) = r(2, 2) = cos(roll), r(2, 1) = sin(roll), r(1, 2) = -sin(roll);
-    p(1, 1) = 1, p(0, 1) = p(1, 0) = p(1, 2) = p(2, 1) = 0;
-    p(0, 0) = p(2, 2) = cos(pitch), p(0, 2) = sin(pitch), p(2, 0) = -sin(pitch);
-    y(2, 2) = 1, y(0, 2) = y(1, 2) = y(2, 1) = y(2, 0) = 0;
-    y(0, 0) = y(1, 1) = cos(yaw), y(0, 1) = sin(yaw), y(1, 0) = -sin(yaw);
-    MatrixXd left(3, 3);
-    left(0, 0) = 1, left(1, 1) = left(2, 2) = -1;
-    MatrixXd right(3, 3);
-    right(1, 0) = right(0, 1) = 1, right(2, 2) = -1;
-    MatrixXd result = left * y * p * r * right;
-    double roll2 = atan2(result(2, 1), result(2, 2));
-    double pitch2 = atan2(-result(2, 0), sqrt(result(2, 1) * result(2, 1) + result(2, 2) * result(2, 2)));
-    double yaw2 = atan2(result(1, 0), result(0, 0));
-    return std::vector<double>({roll2,pitch2,yaw2});
+	MatrixXd rot(3, 3);
+	rot(0, 0) = 1 - 2 * y * y - 2 * z * z;
+	rot(0, 1) = 2 * (x * y - w * z);
+	rot(0, 2) = 2 * (x * z + w * y);
+	rot(1, 0) = 2 * (x * y + w * z);
+	rot(1, 1) = 1 - 2 * x * x - 2 * z * z;
+	rot(1, 2) = 2 * (y * z - w * x);
+	rot(2, 0) = 2 * (x * z - w * y);
+	rot(2, 1) = 2 * (y * z + w * x);
+	rot(2, 2) = 1 - 2 * x * x - 2 * y * y;
+	MatrixXd left(3, 3);
+	left(0, 0) = 1, left(1, 1) = left(2, 2) = -1;
+	MatrixXd right(3, 3);
+	right(1, 0) = right(0, 1) = 1, right(2, 2) = -1;
+	MatrixXd result = left * rot * right;
+	double roll2 = atan2(result(2, 1), result(2, 2));
+	double pitch2 = atan2(-result(2, 0), sqrt(result(2, 1) * result(2, 1) + result(2, 2) * result(2, 2)));
+	double yaw2 = atan2(result(1, 0), result(0, 0));
+	return std::vector<double>({roll2, pitch2, yaw2});
 }
 
 /*
@@ -175,12 +177,9 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 			double qx = data.rotation.x;
 			double qy = data.rotation.y;
 			double qz = data.rotation.z;
-			double roll = std::atan2(2 * (qw * qx + qy * qz), (1 - 2 * (qx * qx + qy * qy)));
-        	double pitch = std::asin(2 * (qw * qy - qx * qz));
-        	double yaw = std::atan2(2 * (qw * qz + qx * qy), (1 - 2 * (qz * qz + qy * qy)));
-			auto rot2 = transformAngle(roll,pitch,yaw);
-			printf("Received quaternion, qx=%lf, qy=%lf, qz=%lf, qw=%lf\n",qx,qy,qz,qw);
-			printf("Attempting to send data to serial: x=%f, y=%f, z=%f, (DEG)roll=%f, pitch=%f, yaw=%f\n", data.translation.y, data.translation.x, -data.translation.z, rot2[0] / M_PI * 180,rot2[1] / M_PI * 180,rot2[2] / M_PI * 180);
+			auto rot2 = transformAngle(qx, qy, qz, qw);
+			printf("Received quaternion, qx=%lf, qy=%lf, qz=%lf, qw=%lf\n", qx, qy, qz, qw);
+			printf("Attempting to send data to serial: x=%f, y=%f, z=%f, (DEG)roll=%f, pitch=%f, yaw=%f\n", data.translation.y, data.translation.x, -data.translation.z, rot2[0] / M_PI * 180, rot2[1] / M_PI * 180, rot2[2] / M_PI * 180);
 			// ROS-ENU -> PX4-NED
 			if (serial_port)
 			{
