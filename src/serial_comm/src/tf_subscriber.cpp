@@ -42,7 +42,8 @@ std::vector<double> transformAngle(double x, double y, double z, double w)
 	double roll2 = atan2(result(2, 1), result(2, 2));
 	double pitch2 = atan2(-result(2, 0), sqrt(result(2, 1) * result(2, 1) + result(2, 2) * result(2, 2)));
 	double yaw2 = atan2(result(1, 0), result(0, 0));
-	return std::vector<double>({roll2, pitch2, yaw2});
+	std::vector<double> val = {roll2, pitch2, yaw2};
+	return val;
 }
 
 /*
