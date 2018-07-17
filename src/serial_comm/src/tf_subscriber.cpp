@@ -15,6 +15,10 @@
 #include <map>
 using namespace std;
 
+
+#define likely(x) __builtin_expect(!!(x), 1) //gcc内置函数, 帮助编译器分支优化
+#define unlikely(x) __builtin_expect(!!(x), 0)
+
 ros::Publisher *publisher = nullptr;
 /*
 geometry_msgs/TransformStamped[] transforms
@@ -140,8 +144,12 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 		if (_msg)
 		{
 			auto data = (*_msg)->transforms[1].transform;
+			if(unlikely((*_msg)->transforms[0].header.frame_id=="laser"))
+			{
+				data = (*_msg)->transforms[0].transform;
+			}
 			Coordinate converter(data.translation.x, data.translation.y, data.translation.z, data.rotation.w, data.rotation.x, data.rotation.y, data.rotation.z);
-			converter.setCoordMode(Coordinate::nedBody);
+			converter.setCoordMode(Coordinate::nedLocal);
 			converter.setRotMode(Coordinate::euler);
 			auto rot = converter.getRotation();
 			auto trans = converter.getTranslation();
@@ -151,7 +159,7 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 			{
 				mavlink_message_t msg;
 				mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(), trans[0],
-														  trans[1], 0, 0, 0, rot[2]);
+														  trans[1], trans[2], rot[0], rot[1], rot[2]);
 				unsigned int send_length = mavlink_msg_to_send_buffer(serial_port_send_buffer, &msg);
 				serial_port->sendBytes(serial_port_send_buffer, send_length);
 			}
