@@ -165,23 +165,28 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 			rot(2, 0) = 2 * (x * z - w * y);
 			rot(2, 1) = 2 * (y * z + w * x);
 			rot(2, 2) = 1 - 2 * x * x - 2 * y * y;
-			MatrixXd left(3, 3);
-			left(0, 0) = 1, left(1, 1) = left(2, 2) = -1;
-			MatrixXd right(3, 3);
-			right(1, 0) = right(0, 1) = 1, right(2, 2) = -1;
-			MatrixXd result = left * rot * right;
+			//cout << "rot matrix" << rot << endl;
+			MatrixXd result(3,3);
+			result(0,0)=rot(1,0);
+result(0,1)=-rot(1,1);
+result(0,2)=-rot(1,2);
+result(1,0)=rot(0,0);
+result(1,1)=-rot(0,1);
+result(1,2)=-rot(0,2);
+result(2,0)=-rot(2,0);
+result(2,1)=rot(2,1);
+result(2,2)=rot(2,2);
 			double roll2 = atan2(result(2, 1), result(2, 2));
 			double pitch2 = atan2(-result(2, 0), sqrt(result(2, 1) * result(2, 1) + result(2, 2) * result(2, 2)));
 			double yaw2 = atan2(result(1, 0), result(0, 0));
 
 			printf("Received quaternion, qx=%lf, qy=%lf, qz=%lf, qw=%lf\n", x, y, z, w);
-			printf("Attempting to send data to serial: x=%f, y=%f, z=%f, (DEG)roll=%f, pitch=%f, yaw=%f\n", data.translation.y, data.translation.x, -data.translation.z, roll2, pitch2, yaw2);
+			printf("Attempting to send data to serial: x=%f, y=%f, z=%f, (DEG)roll=%f, pitch=%f, yaw=%f\n\n", data.translation.y, data.translation.x, -data.translation.z, roll2, pitch2, yaw2);
 			// ROS-ENU -> PX4-NED
 			if (serial_port)
 			{
 				mavlink_message_t msg;
-				mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(), data.translation.y,
-														  data.translation.x, -data.translation.z, roll2, pitch2, yaw2);
+				mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(), data.translation.y,														  data.translation.x, -data.translation.z, roll2, pitch2, yaw2);
 				unsigned int send_length = mavlink_msg_to_send_buffer(serial_port_send_buffer, &msg);
 				serial_port->sendBytes(serial_port_send_buffer, send_length);
 			}
