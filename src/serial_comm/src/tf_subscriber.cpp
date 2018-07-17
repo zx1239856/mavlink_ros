@@ -85,8 +85,8 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 					{
 						mavlink_vision_position_estimate_t vision_position;
 						mavlink_msg_vision_position_estimate_decode(&msg, &vision_position);
-						printf("params: t_x=%f  t_y=%f r_z=%f r_w=%f\n",
-							   vision_position.x, vision_position.y, vision_position.pitch, vision_position.yaw);
+						printf("Vision_position_estimate: x=%f, y=%f, z=%f, roll=%f, pitch=%f, yaw=%f\n",
+							   vision_position.x, vision_position.y, vision_position.z, vision_position.roll, vision_position.pitch, vision_position.yaw);
 					}
 					break;
 					case MAVLINK_MSG_ID_HIGHRES_IMU:
@@ -145,7 +145,7 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 			converter.setRotMode(Coordinate::euler);
 			auto rot = converter.getRotation();
 			auto trans = converter.getTranslation();
-			printf("NED coord:  x=%lf, y=%lf, yaw(deg)=%lf\n", trans[0], trans[1], rot[2] / M_PI * 180);
+			printf("Attempting to send data to serial: x=%f, y=%f, z=%f, (DEG)roll=%f, pitch=%f, yaw=%f\n", trans[0], trans[1], trans[2], rot[0] / M_PI * 180,rot[1] / M_PI * 180,rot[2] / M_PI * 180);
 			// ROS-ENU -> PX4-NED
 			if (serial_port)
 			{
