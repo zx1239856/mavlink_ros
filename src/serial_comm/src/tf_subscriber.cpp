@@ -156,7 +156,7 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 						imu_msg.orientation.z = -att.q4;
 						imu_msg.orientation.w = att.q1;
 						// construct ok, now pub it
-						cout << imu_msg << endl;
+						//cout << imu_msg << endl;
 						if (publisher)
 							publisher->publish(imu_msg);
 					}
@@ -167,10 +167,10 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 		if (_msg)
 		{
 			auto data = (*_msg)->transforms[1].transform;
-			if(unlikely((*_msg)->transforms[0].header.frame_id=="laser"))
+			/*if(unlikely((*_msg)->transforms[0].header.frame_id=="laser"))
 			{
 				data = (*_msg)->transforms[0].transform;
-			}
+			}*/
 			Coordinate converter(data.translation.x, data.translation.y, data.translation.z, data.rotation.w, data.rotation.x, data.rotation.y, data.rotation.z);
 			converter.setRotMode(Coordinate::euler);
 			auto rot = converter.getRotation();
