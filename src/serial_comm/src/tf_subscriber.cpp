@@ -171,10 +171,15 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 			{
 				data = (*_msg)->transforms[0].transform;
 			}*/
-			Coordinate converter(data.translation.x, data.translation.y, data.translation.z, data.rotation.w, data.rotation.x, data.rotation.y, data.rotation.z);
-			converter.setRotMode(Coordinate::euler);
-			auto rot = converter.getRotation();
-			auto rot2 = transformAngle(rot[0],rot[1],rot[2]);
+			double qw = data.rotation.w;
+			double qx = data.rotation.x;
+			double qy = data.rotation.y;
+			double qz = data.rotation.z;
+			double roll = std::atan2(2 * (qw * qx + qy * qz), (1 - 2 * (qx * qx + qy * qy)));
+        	double pitch = std::asin(2 * (qw * qy - qx * qz));
+        	double yaw = std::atan2(2 * (qw * qz + qx * qy), (1 - 2 * (qz * qz + qy * qy)));
+			auto rot2 = transformAngle(roll,pitch,yaw);
+			printf("Received quaternion, qx=%lf, qy=%lf, qz=%lf, qw=%lf\n",qx,qy,qz,qw);
 			printf("Attempting to send data to serial: x=%f, y=%f, z=%f, (DEG)roll=%f, pitch=%f, yaw=%f\n", data.translation.y, data.translation.x, -data.translation.z, rot2[0] / M_PI * 180,rot2[1] / M_PI * 180,rot2[2] / M_PI * 180);
 			// ROS-ENU -> PX4-NED
 			if (serial_port)
