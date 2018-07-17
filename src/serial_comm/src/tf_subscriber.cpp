@@ -189,7 +189,6 @@ int main(int argc, char **argv)
 	}
 	ros::init(argc, argv, "tf_subscriber");
 	ros::NodeHandle n;
-	ros::NodeHandle n2;
 	// initialize serial port
 	SimpleSerialPort *serial_port = SimpleSerialPort::getInstance();
 	if (serial_port)
@@ -209,7 +208,7 @@ int main(int argc, char **argv)
 	{
 		ROS_INFO("Serial device not specified, only output data to stdout. If you want to output data to serial, please add device name");
 	}
-	ros::Publisher imu_pub = n2.advertise<sensor_msgs::Imu>("imu", 1000);
+	ros::Publisher imu_pub = n.advertise<sensor_msgs::Imu>("imu", 1000);
 	publisher = &imu_pub;
 	ros::Subscriber sub = n.subscribe("tf", 1000, Callback);
 	while (ros::ok())
