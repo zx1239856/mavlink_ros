@@ -12,14 +12,37 @@
 
 #include <geometry_msgs/Vector3.h>
 #include <tf/transform_datatypes.h>
+#include <Eigen/Dense>
 #include <map>
 using namespace std;
+using namespace Eigen;
 
 
 #define likely(x) __builtin_expect(!!(x), 1) //gcc内置函数, 帮助编译器分支优化
 #define unlikely(x) __builtin_expect(!!(x), 0)
 
 ros::Publisher *publisher = nullptr;
+
+std::vector<double> transformAngle(double roll,double pitch, double yaw)
+{
+    MatrixXd r(3, 3), p(3, 3), y(3, 3);
+    r(0, 0) = 1, r(0, 1) = r(0, 2) = r(1, 0) = r(2, 0) = 0;
+    r(1, 1) = r(2, 2) = cos(roll), r(2, 1) = sin(roll), r(1, 2) = -sin(roll);
+    p(1, 1) = 1, p(0, 1) = p(1, 0) = p(1, 2) = p(2, 1) = 0;
+    p(0, 0) = p(2, 2) = cos(pitch), p(0, 2) = sin(pitch), p(2, 0) = -sin(pitch);
+    y(2, 2) = 1, y(0, 2) = y(1, 2) = y(2, 1) = y(2, 0) = 0;
+    y(0, 0) = y(1, 1) = cos(yaw), y(0, 1) = sin(yaw), y(1, 0) = -sin(yaw);
+    MatrixXd left(3, 3);
+    left(0, 0) = 1, left(1, 1) = left(2, 2) = -1;
+    MatrixXd right(3, 3);
+    right(1, 0) = right(0, 1) = 1, right(2, 2) = -1;
+    MatrixXd result = left * y * p * r * right;
+    double roll2 = atan2(result(2, 1), result(2, 2));
+    double pitch2 = atan2(-result(2, 0), sqrt(result(2, 1) * result(2, 1) + result(2, 2) * result(2, 2)));
+    double yaw2 = atan2(result(1, 0), result(0, 0));
+    return std::vector<double>({roll2,pitch2,yaw2});
+}
+
 /*
 geometry_msgs/TransformStamped[] transforms
   std_msgs/Header header
@@ -149,17 +172,16 @@ void Process(const tf::tfMessage::ConstPtr *_msg)
 				data = (*_msg)->transforms[0].transform;
 			}
 			Coordinate converter(data.translation.x, data.translation.y, data.translation.z, data.rotation.w, data.rotation.x, data.rotation.y, data.rotation.z);
-			converter.setCoordMode(Coordinate::nedLocal);
 			converter.setRotMode(Coordinate::euler);
 			auto rot = converter.getRotation();
-			auto trans = converter.getTranslation();
-			printf("Attempting to send data to serial: x=%f, y=%f, z=%f, (DEG)roll=%f, pitch=%f, yaw=%f\n", trans[0], trans[1], trans[2], rot[0] / M_PI * 180,rot[1] / M_PI * 180,rot[2] / M_PI * 180);
+			auto rot2 = transformAngle(rot[0],rot[1],rot[2]);
+			printf("Attempting to send data to serial: x=%f, y=%f, z=%f, (DEG)roll=%f, pitch=%f, yaw=%f\n", data.translation.y, data.translation.x, -data.translation.z, rot2[0] / M_PI * 180,rot2[1] / M_PI * 180,rot2[2] / M_PI * 180);
 			// ROS-ENU -> PX4-NED
 			if (serial_port)
 			{
 				mavlink_message_t msg;
-				mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(), trans[0],
-														  trans[1], trans[2], rot[0], rot[1], rot[2]);
+				mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(), data.translation.y,
+														  data.translation.x, -data.translation.z, rot2[0], rot2[1], rot2[2]);
 				unsigned int send_length = mavlink_msg_to_send_buffer(serial_port_send_buffer, &msg);
 				serial_port->sendBytes(serial_port_send_buffer, send_length);
 			}
