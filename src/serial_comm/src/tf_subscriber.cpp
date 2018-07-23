@@ -43,9 +43,11 @@ int main(int argc, char **argv)
 	}
 	else
 	{
-		ROS_INFO("Serial device not specified, only output data to stdout. If you want to output data to serial, please add device name");
+		ROS_WARN("Serial device not specified, only output data to stdout. If you want to output data to serial, please add device name");
 	}
 	Communication mainComm(n);
 	mainComm.start();
 	return 0;
 }
+
+

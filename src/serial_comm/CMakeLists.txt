@@ -11,6 +11,7 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
+  tf
 )
 
 ## System dependencies are found with CMake's conventions
@@ -203,8 +204,11 @@ find_package(cmake_modules REQUIRED)
 find_package(Eigen3 REQUIRED)
 include_directories(${EIGEN3_INCLUDE_DIR})
 add_definitions(${EIGEN_DEFINITIONS})
-
 add_definitions(-std=c++11)
-add_executable(tf_subscriber src/tf_subscriber.cpp src/simple_comm/simple_serial_port.cpp src/communication.cpp)
+
+add_executable(tf_subscriber src/tf_subscriber.cpp src/simple_comm/simple_serial_port.cpp src/communication.cpp src/coordinate.cpp)
 target_link_libraries(tf_subscriber ${catkin_LIBRARIES})
+
+#add_executable(xrosnode src/xrosnode.cpp)#src/simple_comm/simple_serial_port.cpp src/communication.cpp)
+#target_link_libraries(xrosnode ${catkin_LIBRARIES})
 
