@@ -8,35 +8,25 @@
 #include <cassert>
 #include <cmath>
 
+
 Coordinate::Coordinate()
 {
     euler2quaternion(true);
 }
-
-Coordinate::Coordinate(double _x, double _y, double _z, double _roll, double _pitch, double _yaw, coordMode mode)
+/*
+Coordinate::Coordinate(double _roll, double _pitch, double _yaw, double _xgyro, double _ygyro, double _zgyro,
+		double _xacc, double _yacc, double _zacc, double _x, double _y, double _z, coordMode mode):
+		roll(_roll),pitch(_pitch),yaw(_yaw),
+		x(_x),y(_y),z(_z),xgyro(_xgyro),ygyro(_ygyro),zgyro(_zgyro),xacc(_xacc),yacc(_yacc),zacc(_zacc),currCoordMode(mode)
 {
-    x = _x;
-    y = _y;
-    z = _z;
-    roll = _roll;
-    pitch = _pitch;
-    yaw = _yaw;
-    currCoordMode = mode;
-    currRotMode = euler;
     euler2quaternion(true);
 }
-
-Coordinate::Coordinate(double _x, double _y, double _z, double _qw, double _qx, double _qy, double _qz, coordMode mode)
+*/
+Coordinate::Coordinate(double _qw, double _qx, double _qy, double _qz, double _xgyro, double _ygyro, double _zgyro,
+		double _xacc, double _yacc, double _zacc, double _x, double _y, double _z, coordMode mode):
+		qw(_qw),qx(_qx),qy(_qy),qz(_qz),x(_x),y(_y),z(_z),xgyro(_xgyro),ygyro(_ygyro),zgyro(_zgyro),
+		xacc(_xacc),yacc(_yacc),zacc(_zacc),currCoordMode(mode)
 {
-    x = _x;
-    y = _y;
-    z = _z;
-    qw = _qw;
-    qx = _qx;
-    qy = _qy;
-    qz = _qz;
-    currCoordMode = mode;
-    currRotMode = quaternion;
     euler2quaternion(false);
 }
 
@@ -51,7 +41,7 @@ Coordinate::Coordinate(std::vector<double> translation, std::vector<double> rota
         roll = rotation[0];
         pitch = rotation[1];
         yaw = rotation[2];
-        currRotMode = euler;
+      //  currRotMode = euler;
         euler2quaternion(true);
     }
     else if (rotation.size() == 4)
@@ -60,12 +50,43 @@ Coordinate::Coordinate(std::vector<double> translation, std::vector<double> rota
         qx = rotation[1];
         qy = rotation[2];
         qz = rotation[3];
-        currRotMode = quaternion;
+      //currRotMode = quaternion;
+
         euler2quaternion(false);
     }
     currCoordMode = mode;
 }
-
+void Coordinate::assign(sensor_msgs::Imu& imu_topic_msg)
+{
+	for (int i = 0; i < 9; i++)
+	{
+		imu_topic_msg.orientation_covariance[i] = 0;
+		imu_topic_msg.angular_velocity_covariance[i] = 0;
+		imu_topic_msg.linear_acceleration_covariance[i] = 0;
+	}
+	imu_topic_msg.orientation.w = qw;
+	imu_topic_msg.orientation.x = qx;
+	imu_topic_msg.orientation.y = qy;
+	imu_topic_msg.orientation.z = qz;
+	imu_topic_msg.angular_velocity.x = xgyro;
+	imu_topic_msg.angular_velocity.y = ygyro;
+	imu_topic_msg.angular_velocity.z = zgyro;
+	imu_topic_msg.linear_acceleration.x = xacc;
+	imu_topic_msg.linear_acceleration.y = yacc;
+	imu_topic_msg.linear_acceleration.z = zacc;
+}
+void Coordinate::setGyro(double _xgyro, double _ygyro, double _zgyro)
+{
+	xgyro = _xgyro;
+	ygyro = _ygyro;
+	zgyro = _zgyro;
+}
+void Coordinate::setAcc(double _xacc, double _yacc, double _zacc)
+{
+	xacc = _xacc;
+	yacc = _yacc;
+	zacc = _zacc;
+}
 void Coordinate::setCoordMode(Coordinate::coordMode mode)
 {
     //body-fixed NED → ROS ENU: (x y z)→(x -y -z) or (w x y z)→(x -y -z w)
@@ -75,19 +96,27 @@ void Coordinate::setCoordMode(Coordinate::coordMode mode)
         // we cannot convert from local to body frame
         assert(!((currCoordMode == nedLocal && mode == nedBody) || (currCoordMode == nedBody && mode == nedLocal)));
         // do re-calc stuffs
-        if (mode == nedBody || currCoordMode == nedBody) // ENU -> body-fixed NED
+        if (mode == nedBody || currCoordMode == nedBody) // (currCoordMode)hlu-ENU <-> body-fixed hrd-NED, both directions are the same
         {
             y = -y;
             z = -z;
+            ygyro = -ygyro;
+            zgyro = -zgyro;
+            yacc = -yacc;
+            zacc = -zacc;
             pitch = -pitch;
             yaw = -yaw;
             qy = -qy;
             qz = -qz;
         }
-        else if (mode == nedLocal || currCoordMode == nedLocal)
+        else if (mode == nedLocal || currCoordMode == nedLocal)	// (currCoordMode)ENU -> local NED
         {
             std::swap(x, y);
             z = -z;
+            std::swap(xgyro, ygyro);
+            zgyro = -zgyro;
+            std::swap(xacc, yacc);
+            zacc = -zacc;
             std::swap(roll, pitch);
             yaw = -yaw;
             std::swap(qx, qy);
@@ -96,7 +125,7 @@ void Coordinate::setCoordMode(Coordinate::coordMode mode)
     }
     currCoordMode = mode;
 }
-
+/*
 void Coordinate::setRotMode(Coordinate::rotMode mode)
 {
     if (currRotMode != mode)
@@ -105,7 +134,7 @@ void Coordinate::setRotMode(Coordinate::rotMode mode)
         // no need to recalc
     }
 }
-
+*/
 void Coordinate::setTranslation(double _x, double _y, double _z)
 {
     x = _x;
@@ -113,7 +142,7 @@ void Coordinate::setTranslation(double _x, double _y, double _z)
     z = _z;
 }
 
-void Coordinate::setTranslation(std::vector<double> translation)
+void Coordinate::setTranslation(const std::vector<double>& translation)
 {
     x = translation[0];
     y = translation[1];
@@ -125,7 +154,7 @@ void Coordinate::setRotation(double _roll, double _pitch, double _yaw)
     roll = _roll;
     pitch = _pitch;
     yaw = _yaw;
-    currRotMode = euler;
+    //currRotMode = euler;
     euler2quaternion(true);
 }
 
@@ -135,7 +164,7 @@ void Coordinate::setRotation(double _qw, double _qx, double _qy, double _qz)
     qx = _qx;
     qy = _qy;
     qz = _qz;
-    currRotMode = quaternion;
+    //currRotMode = quaternion;
     euler2quaternion(false);
 }
 
@@ -164,11 +193,11 @@ std::vector<double> Coordinate::getTranslation() const
     return std::vector<double>({x, y, z});
 }
 
-std::vector<double> Coordinate::getRotation() const
+std::vector<double> Coordinate::getRotation(Coordinate::rotMode rot_mode) const
 {
-    if (currRotMode == euler)
+    if (rot_mode == euler)
         return std::vector<double>({roll, pitch, yaw});
-    else if (currRotMode == quaternion)
+    else if (rot_mode == quaternion)
         return std::vector<double>({qw, qx, qy, qz});
 }
 
