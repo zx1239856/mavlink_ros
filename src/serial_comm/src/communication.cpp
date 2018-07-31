@@ -183,6 +183,10 @@ void Communication::send_tf_msg(const tf::tfMessage::ConstPtr *tf_msg)
 			data = (*tf_msg)->transforms[0].transform;
 		}*/
 
+		if(data_frame != string("laser")){
+			return ;
+		}
+
 		double w = data.rotation.w;
 		double x = data.rotation.x;
 		double y = data.rotation.y;
@@ -222,9 +226,6 @@ void Communication::send_tf_msg(const tf::tfMessage::ConstPtr *tf_msg)
 		double yaw = coor.getRotation(Coordinate::euler)[2];*/
 		//cout<<test_frame<<endl;
 		//send target position
-		if(data_frame != string("laser")){
-			return ;
-		}
 		if (serial_port){
 			if(abs(source_x + delta_x - local_x) < 0.02){
 				delta_x=0;
@@ -248,7 +249,7 @@ void Communication::send_tf_msg(const tf::tfMessage::ConstPtr *tf_msg)
 
 			static tf::TransformBroadcaster br;
 			tf::Transform transform;
-			transform.setOrigin(tf::Vector3(local_y+delta_y,local_x+delta_x,local_z+delta_z) );
+			transform.setOrigin(tf::Vector3(local_y+delta_y,local_x+delta_x,local_z) );
 			transform.setRotation(tf::Quaternion(data.rotation.x, data.rotation.y, data.rotation.z, data.rotation.w));
 			br.sendTransform(tf::StampedTransform(transform, ros::Time::now(), "map", "target"));
 
@@ -271,6 +272,22 @@ void Communication::send_tf_msg(const tf::tfMessage::ConstPtr *tf_msg)
 		}
 	}
 }
+
+void Communication::Callback_v(const serial_comm::velocity::ConstPtr &_msg){
+	if(_msg){
+		source_x = local_x;
+		source_y = local_y;
+		source_z = local_z;
+		source_yaw = local_yaw;
+		delta_x = _msg->v_x;	
+		delta_y = _msg->v_y;
+		if(_msg->reverse)
+			delta_yaw = 3.141592535;
+		else
+			delta_yaw = 0;
+	}
+}
+/*
 void Communication::Callback_ctrl(const std_msgs::Int32::ConstPtr &keyboard_msg){
 	if(abs(source_x + delta_x - local_x) < 0.02){
 		delta_x=0;
@@ -334,4 +351,4 @@ void Communication::Callback_ctrl(const std_msgs::Int32::ConstPtr &keyboard_msg)
 			break;
 	}
 
-}
+}*/
