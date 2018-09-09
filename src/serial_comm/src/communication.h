@@ -22,7 +22,7 @@ public:
 		offboard_mode_pub = n.advertise<std_msgs::Int32>("offboard_mode_msg",1000);
 		velocity_sub = n.subscribe("path_planning", 1000, &Communication::Callback_v, this);
 		udpHandler = new SimpleUDP();
-		udpHandler->init("127.0.0.1",14556,"127.0.0.1",14556);
+		udpHandler->init("192.168.21.101",14556,"192.168.21.30",14556);
 	}
 	~Communication()
 	{

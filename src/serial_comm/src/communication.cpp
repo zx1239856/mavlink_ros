@@ -73,6 +73,7 @@ void Communication::receive_mavlink_send_imu()
 	{
 		if(mavlink_parse_char(MAVLINK_COMM_0,udp_receive_buffer[i],&mavlink_msg,&status))
 		{
+			ROS_INFO("Received from UDP");
 			unsigned int len = mavlink_msg_to_send_buffer((unsigned char*)serial_port_send_buffer,&mavlink_msg);
 			if(serial_port)
 			{
