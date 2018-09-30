@@ -1,3 +1,13 @@
+/**
+* serialwrapper.cpp
+* @author Zhang Xiang
+* @description 
+* @created Sun Sep 30 2018 04:06:42 GMT+0800 (CST)
+* @license MIT
+* @copyright All rights reserved, 2018
+* @last-modified Sun Sep 30 2018 09:59:35 GMT+0800 (CST)
+*/
+
 #include "serialwrapper.h"
 
 serialWrapper::serialWrapper(std::string dev, uint baudRate) : _devName(dev), _baudRate(baudRate), _port(_io)

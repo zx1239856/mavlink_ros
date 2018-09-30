@@ -209,9 +209,13 @@ add_definitions(${EIGEN_DEFINITIONS})
 
 file(GLOB_RECURSE LIB_SRCS "*.cpp")
 file(GLOB_RECURSE LIB_HEADERS "*.h")
+file(GLOB_RECURSE ALL_EXECUTABLES "*_main.cpp")
+list(REMOVE_ITEM LIB_SRCS ${ALL_EXECUTABLES})
 add_library(${PROJECT_NAME} ${LIB_SRCS} ${LIB_HEADERS})
 ## Get all executables
 add_executable(serialpub src/serialpub_main.cpp)
+add_executable(udpnode src/udpnode_main.cpp)
 target_link_libraries(serialpub ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(udpnode ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${PROJECT_NAME})
 
 

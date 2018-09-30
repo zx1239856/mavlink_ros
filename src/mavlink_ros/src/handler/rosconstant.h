@@ -1,3 +1,13 @@
+/**
+* rosconstant.h
+* @author Zhang Xiang
+* @description 
+* @created Sun Sep 30 2018 01:00:42 GMT+0800 (CST)
+* @license MIT
+* @copyright All rights reserved, 2018
+* @last-modified Sun Sep 30 2018 10:00:17 GMT+0800 (CST)
+*/
+
 #pragma once
 
 namespace handler

@@ -1,3 +1,13 @@
+/**
+* rosnodehandler.h
+* @author Zhang Xiang
+* @description 
+* @created Sun Sep 30 2018 09:03:48 GMT+0800 (CST)
+* @license MIT
+* @copyright All rights reserved, 2018
+* @last-modified Sun Sep 30 2018 10:00:28 GMT+0800 (CST)
+*/
+
 #pragma once
 #include "rosconstant.h"
 #include <ros/ros.h>

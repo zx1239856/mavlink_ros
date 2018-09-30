@@ -1,3 +1,13 @@
+/**
+* rosnodehandler.cpp
+* @author Zhang Xiang
+* @description 
+* @created Sun Sep 30 2018 09:12:59 GMT+0800 (CST)
+* @license MIT
+* @copyright All rights reserved, 2018
+* @last-modified Sun Sep 30 2018 10:00:22 GMT+0800 (CST)
+*/
+
 #include "rosnodehandler.h"
 #include "../utils/coordinate.h"
 #include <exception>

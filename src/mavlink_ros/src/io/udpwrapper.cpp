@@ -1,7 +1,17 @@
+/**
+* udpwrapper.cpp
+* @author Zhang Xiang
+* @description 
+* @created Sun Sep 30 2018 01:54:20 GMT+0800 (CST)
+* @license MIT
+* @copyright All rights reserved, 2018
+* @last-modified Sun Sep 30 2018 10:14:48 GMT+0800 (CST)
+*/
+
 #include "udpwrapper.h"
 
-udpWrapper::udpWrapper(ushort localPort,std::string remoteAddr,ushort remotePort):
-_localEndpnt(udp::v4(),localPort),_remoteEndpnt(boost::asio::ip::address_v4::from_string(remoteAddr),remotePort),
+udpWrapper::udpWrapper(ushort localPort):
+_localEndpnt(udp::v4(),localPort),
 _socket(_io,_localEndpnt)
 {
 
