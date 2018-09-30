@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 2.8.3)
-project(serial_comm)
+project(mavlink_ros)
 
 ## Compile as C++11, supported in ROS Kinetic and newer
-# add_compile_options(-std=c++11)
-
+add_compile_options(-std=c++11)
+list( APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules )
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -14,6 +14,8 @@ find_package(catkin REQUIRED COMPONENTS
   tf
   message_generation
 )
+
+find_package(Boost REQUIRED)
 
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
@@ -202,13 +204,14 @@ include_directories(
 #uncomment the following 4 lines to use the Eigen library
 find_package(cmake_modules REQUIRED)
 find_package(Eigen3 REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIR})
+include_directories(${EIGEN3_INCLUDE_DIR} ${Boost_INCLUDE_DIRS})
 add_definitions(${EIGEN_DEFINITIONS})
-add_definitions(-std=c++11)
 
-add_executable(tf_subscriber src/tf_subscriber.cpp src/simple_comm/simple_serial_port.cpp src/simple_comm/simple_udp.cpp src/communication.cpp src/coordinate.cpp)
-target_link_libraries(tf_subscriber ${catkin_LIBRARIES})
+file(GLOB_RECURSE LIB_SRCS "*.cpp")
+file(GLOB_RECURSE LIB_HEADERS "*.h")
+add_library(${PROJECT_NAME} ${LIB_SRCS} ${LIB_HEADERS})
+## Get all executables
+add_executable(serialpub src/serialpub_main.cpp)
+target_link_libraries(serialpub ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${PROJECT_NAME})
 
-#add_executable(xrosnode src/xrosnode.cpp)#src/simple_comm/simple_serial_port.cpp src/communication.cpp)
-#target_link_libraries(xrosnode ${catkin_LIBRARIES})
 
