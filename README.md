@@ -11,13 +11,13 @@ A simple tool for communication between PX4 and ROS.
 ## ROS Topics Used
 + /imu 
 Publish imu data from PX4 flight controller. This can be used later in SLAM applications.
-+ /mavReadRaw 
++ /mavReadRaw  
 Publish mavlink rawdata read from serial. This can be utilized by other modules, i.e. UDP forwarding module. 
-+ /mavWriteRaw 
++ /mavWriteRaw  
 Everything published to this topic gets written to serial in the order of incoming time.
 
 ## Modules
-+ serialpub 
++ serialpub  
 ROS node to publish data from serial interface 
 Usage: 
 ```serialpub [devName]```
