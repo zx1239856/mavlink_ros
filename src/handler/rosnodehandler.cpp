@@ -110,8 +110,6 @@ void rosNodeHandler::processSerial()
         case MAVLINK_MSG_ID_VISION_POSITION_ESTIMATE:
             mavlink_vision_position_estimate_t vision_position;
             mavlink_msg_vision_position_estimate_decode(&mavlink_msg, &vision_position);
-            printf("Vision_position_estimate: x=%f, y=%f, z=%f, roll=%f, pitch=%f, yaw=%f\n",
-                   vision_position.x, vision_position.y, vision_position.z, vision_position.roll, vision_position.pitch, vision_position.yaw);
             break;
         case MAVLINK_MSG_ID_HIGHRES_IMU:
             mavlink_highres_imu_t imu_data;
