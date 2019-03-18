@@ -109,7 +109,7 @@ catkin_package(
 #  LIBRARIES beginner_tutorials
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
-   CATKIN_DEPENDS message_runtime
+   CATKIN_DEPENDS message_runtime roscpp rospy std_msgs tf
 )
 
 ###########
@@ -212,6 +212,7 @@ file(GLOB_RECURSE LIB_HEADERS "*.h")
 file(GLOB_RECURSE ALL_EXECUTABLES "*_main.cpp")
 list(REMOVE_ITEM LIB_SRCS ${ALL_EXECUTABLES})
 add_library(${PROJECT_NAME} ${LIB_SRCS} ${LIB_HEADERS})
+target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 ## Get all executables
 add_executable(serialpub src/serialpub_main.cpp)
 add_executable(udpnode src/udpnode_main.cpp)
