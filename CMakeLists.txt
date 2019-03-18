@@ -204,7 +204,8 @@ include_directories(
 #uncomment the following 4 lines to use the Eigen library
 find_package(cmake_modules REQUIRED)
 find_package(Eigen3 REQUIRED)
-include_directories(${EIGEN3_INCLUDE_DIR} ${Boost_INCLUDE_DIRS})
+find_package(gflags REQUIRED)
+include_directories(${EIGEN3_INCLUDE_DIR} ${Boost_INCLUDE_DIRS} ${gflags_INCLUDE_DIR})
 add_definitions(${EIGEN_DEFINITIONS})
 
 file(GLOB_RECURSE LIB_SRCS "*.cpp")
@@ -216,7 +217,8 @@ target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES} ${Boost_LIBRARIES})
 ## Get all executables
 add_executable(serialpub src/serialpub_main.cpp)
 add_executable(udpnode src/udpnode_main.cpp)
-target_link_libraries(serialpub ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${PROJECT_NAME})
-target_link_libraries(udpnode ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${PROJECT_NAME})
+set (target_lib ${catkin_LIBRARIES} ${Boost_LIBRARIES} ${gflags_LIBRARIES} ${PROJECT_NAME})
+target_link_libraries(serialpub ${target_lib})
+target_link_libraries(udpnode ${target_lib})
 
 

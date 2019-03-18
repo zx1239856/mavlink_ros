@@ -177,7 +177,7 @@ void rosNodeHandler::sendVisionEstimation(const ros::WallTimerEvent &unused_time
         double y = rotation.y();
         double z = rotation.z();
 
-        std::vector<std::vector<double>> rot;
+        double rot[3][3];
         rot[0][0] = 1 - 2 * y * y - 2 * z * z;
         rot[0][1] = 2 * (x * y - w * z);
         rot[0][2] = 2 * (x * z + w * y);
@@ -188,7 +188,7 @@ void rosNodeHandler::sendVisionEstimation(const ros::WallTimerEvent &unused_time
         rot[2][1] = 2 * (y * z + w * x);
         rot[2][2] = 1 - 2 * x * x - 2 * y * y;
         //cout << "rot matrix" << rot << endl;
-        std::vector<std::vector<double>> result;
+        double result[3][3];
         result[0][0] = rot[1][0];
         result[0][1] = -rot[1][1];
         result[0][2] = -rot[1][2];
@@ -202,14 +202,12 @@ void rosNodeHandler::sendVisionEstimation(const ros::WallTimerEvent &unused_time
         double roll = atan2(result[2][1], result[2][2]);
         double pitch = atan2(-result[2][0], sqrt(result[2][1] * result[2][1] + result[2][2] * result[2][2]));
         double yaw = atan2(result[1][0], result[0][0]);
-        ROS_INFO("Attempting to send data to serial: x=%lf, y=%lf, z=%lf, (DEG)roll=%lf, pitch=%lf, yaw=%lf\n\n", translation.y(), translation.x(), -translation.z(), roll, pitch, yaw);
         // ROS-ENU -> PX4-NED
         mavlink_message_t msg;
         mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(),
                                                   translation.y(), translation.x(), -translation.z(), roll, pitch, yaw);
         unsigned int send_length = mavlink_msg_to_send_buffer(serial_port_send_buffer, &msg);
         serial->send(serial_port_send_buffer, send_length);
-        ROS_INFO("estimate send");
     }
     catch(tf::TransformException ex)
     {

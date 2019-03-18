@@ -11,27 +11,28 @@
 #include "ros/ros.h"
 #include <iostream>
 #include <string>
+#include <gflags/gflags.h>
 #include "handler/rosnodehandler.h"
 #include "io/serialwrapper.h"
 
-using namespace std;
+DEFINE_string(device_name, "",
+              "Serial device of your flight controller");
 
 int main(int argc, char **argv)
 {
-	std::string devName;
-	if (argc != 1 && argc != 2)
+	using namespace std;
+#ifdef GFLAGS_NAMESPACE
+    GFLAGS_NAMESPACE::ParseCommandLineFlags(&argc, &argv, true);
+#else
+    gflags::ParseCommandLineFlags(&argc, &argv, true);
+#endif
+	if(FLAGS_device_name.empty())
 	{
-		ROS_ERROR("Incorrect command. Arguments should contain only serial device name");
-	}
-	else
-	{
-		if (argc == 2)
-		{
-			devName = std::string(argv[1]);
-		}
+		ROS_ERROR("Device name should not be empty");
+		exit(EXIT_FAILURE);
 	}
 	ros::init(argc, argv, "serial_pub");
-	serialWrapper sp(devName);
+	serialWrapper sp(FLAGS_device_name);
 	rosNodeHandler node(&sp);
 	node.run();	
 	return 0;
