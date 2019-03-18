@@ -23,7 +23,7 @@ rosNodeHandler::rosNodeHandler(serialWrapper *sp) : serial(sp)
 void rosNodeHandler::initializeHandler()
 {
     using namespace handler;
-    _tfSub = _node.subscribe(tfTopic, 1 << 10, &rosNodeHandler::tfCallback, this);
+    _wall_timers.push_back(_node.createWallTimer(::ros::WallDuration(handler::visionEstimationPeriodSec), &rosNodeHandler::sendVisionEstimation, this));
     _mavSub = _node.subscribe(mavWriteTopic, 1 << 10, &rosNodeHandler::mavCallback, this);
     _imuPub = _node.advertise<sensor_msgs::Imu>(imuTopic, 1 << 10);
     _mavPub = _node.advertise<std_msgs::UInt8MultiArray>(mavReadTopic, 1 << 10);
@@ -164,34 +164,18 @@ void rosNodeHandler::mavCallback(const std_msgs::UInt8MultiArray::ConstPtr &mavM
     }
 }
 
-void rosNodeHandler::tfCallback(const tf::tfMessage::ConstPtr &tf_msg)
+void rosNodeHandler::sendVisionEstimation(const ros::WallTimerEvent &unused_timer_event)
 {
-    using namespace std;
-    if (tf_msg)
+    tf::StampedTransform transform;
+    try
     {
-        auto transforms = (*tf_msg).transforms;
-        auto data_frame = string("undefined");
-        auto data = (*tf_msg).transforms[1].transform;
-
-        for (auto it = transforms.begin(); it != transforms.end(); it++)
-        {
-            //cout << "frame id of tf_msg : " << (*it).child_frame_id << endl;
-            if ((*it).child_frame_id == string("laser"))
-            {
-                data = (*it).transform;
-                data_frame = string("laser");
-            }
-        }
-
-        if (data_frame != string("laser"))
-        {
-            return;
-        }
-
-        double w = data.rotation.w;
-        double x = data.rotation.x;
-        double y = data.rotation.y;
-        double z = data.rotation.z;
+        _tf_listener.lookupTransform(handler::mapFrameId, handler::robotFrameId, ros::Time(0), transform);
+        auto rotation = transform.getRotation();
+        auto translation = transform.getOrigin();
+        double w = rotation.w();
+        double x = rotation.x();
+        double y = rotation.y();
+        double z = rotation.z();
 
         std::vector<std::vector<double>> rot;
         rot[0][0] = 1 - 2 * y * y - 2 * z * z;
@@ -218,13 +202,17 @@ void rosNodeHandler::tfCallback(const tf::tfMessage::ConstPtr &tf_msg)
         double roll = atan2(result[2][1], result[2][2]);
         double pitch = atan2(-result[2][0], sqrt(result[2][1] * result[2][1] + result[2][2] * result[2][2]));
         double yaw = atan2(result[1][0], result[0][0]);
-        ROS_INFO("Attempting to send data to serial: x=%lf, y=%lf, z=%lf, (DEG)roll=%lf, pitch=%lf, yaw=%lf\n\n", data.translation.y, data.translation.x, -data.translation.z, roll, pitch, yaw);
+        ROS_INFO("Attempting to send data to serial: x=%lf, y=%lf, z=%lf, (DEG)roll=%lf, pitch=%lf, yaw=%lf\n\n", translation.y(), translation.x(), -translation.z(), roll, pitch, yaw);
         // ROS-ENU -> PX4-NED
         mavlink_message_t msg;
         mavlink_msg_vision_position_estimate_pack(1, 200, &msg, ros::Time::now().toNSec(),
-                                                  data.translation.y, data.translation.x, -data.translation.z, roll, pitch, yaw);
+                                                  translation.y(), translation.x(), -translation.z(), roll, pitch, yaw);
         unsigned int send_length = mavlink_msg_to_send_buffer(serial_port_send_buffer, &msg);
         serial->send(serial_port_send_buffer, send_length);
-        cout << "estimate send" << endl;
+        ROS_INFO("estimate send");
+    }
+    catch(tf::TransformException ex)
+    {
+        ROS_ERROR("%s", ex.what());
     }
 }
