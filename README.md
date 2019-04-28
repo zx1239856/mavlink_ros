@@ -1,4 +1,5 @@
-# mavlink_ros
+# mavlink_ros(Deprecated)
+No support for newer PX4 Firmware
 
 ## Changelogs
 + Version 1.1.0  Add UDP support  
